@@ -5,6 +5,10 @@ import starlight from '@astrojs/starlight';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://zigbolt.dev',
+	build: {
+		// Inline all CSS to eliminate render-blocking stylesheet requests (Lighthouse)
+		inlineStylesheets: 'always',
+	},
 	integrations: [
 		starlight({
 			title: 'ZigBolt',
