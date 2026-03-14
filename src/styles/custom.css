@@ -30,6 +30,17 @@
 	font-family: var(--sl-font-system-mono);
 }
 
+/* Header site title — fix low contrast (Lighthouse) */
+header .site-title span,
+.site-title .group {
+	color: var(--sl-color-white) !important;
+}
+
+:root[data-theme='light'] header .site-title span,
+:root[data-theme='light'] .site-title .group {
+	color: var(--sl-color-black) !important;
+}
+
 /* Code block styling */
 pre {
 	border: 1px solid var(--sl-color-gray-5);
