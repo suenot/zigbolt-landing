@@ -16,6 +16,7 @@ export default defineConfig({
 			components: {
 				// Override Hero to add fetchpriority="high" on LCP image
 				Hero: './src/components/Hero.astro',
+				Footer: './src/components/Footer.astro',
 			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/suenot/zigbolt' },
