@@ -60,35 +60,38 @@ html, body {
 }
 
 @keyframes titleReveal {
-	from { opacity: 0; transform: translateY(20px); filter: blur(10px); }
-	to { opacity: 1; transform: translateY(0); filter: blur(0); }
+	from { opacity: 0; transform: translateY(10px); }
+	to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes imageReveal {
-	from { opacity: 0; transform: scale(0.95) translateX(-20px); filter: blur(20px); }
-	to { opacity: 1; transform: scale(1) translateX(0); filter: blur(0); }
+	from { opacity: 0; transform: scale(0.98); }
+	to { opacity: 1; transform: scale(1); }
 }
 
 .copy {
-	animation: titleReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+	animation: titleReveal 0.5s ease-out both;
 }
 
 .image-wrapper {
-	animation: imageReveal 1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+	animation: imageReveal 0.6s ease-out 0.1s both;
 }
 
 .actions {
-	animation: titleReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+	animation: titleReveal 0.5s ease-out 0.2s both;
 }
 
-body::after {
-	content: '';
-	position: fixed;
-	inset: 0;
-	z-index: 9999;
-	pointer-events: none;
-	opacity: 0.15;
-	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3%3Ffilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+/* Background Grid - more subtle */
+html, body {
+	background-color: var(--sl-color-black) !important;
+	color: var(--sl-color-gray-1) !important;
+	background-image: 
+		radial-gradient(circle at 50% 10%, rgba(247, 147, 26, 0.04) 0%, transparent 40%),
+		linear-gradient(rgba(247, 147, 26, 0.01) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(247, 147, 26, 0.01) 1px, transparent 1px);
+	background-size: 100% 100%, 80px 80px, 80px 80px;
+	background-attachment: fixed;
+	position: relative;
 }
 
 /* Force dark scrollbars */

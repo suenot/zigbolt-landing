@@ -30,6 +30,10 @@ export default defineConfig({
 			customCss: ['./src/styles/custom.css'],
 			head: [
 				{
+					tag: 'link',
+					attrs: { rel: 'dns-prefetch', href: 'https://zigbolt.dev' }
+				},
+				{
 					tag: 'meta',
 					attrs: { name: 'theme-color', content: '#0b0b0d' }
 				}
@@ -78,20 +82,7 @@ export default defineConfig({
 		build: {
 			// Increase inline limit to pull more small scripts into the main bundle
 			// avoiding extra network rounds for tiny utilities
-			assetsInlineLimit: 10240,
-			rollupOptions: {
-				output: {
-					// Inline dynamic imports if they are small enough
-					// effectively flattening the dependency tree
-					manualChunks(id) {
-						if (id.includes('node_modules')) {
-							// Combine everything from node_modules into a single vendor chunk
-							// This eliminates the chained dependency problem
-							return 'vendor';
-						}
-					}
-				}
-			}
+			assetsInlineLimit: 4096,
 		}
 	}
 });
