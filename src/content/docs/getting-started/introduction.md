@@ -5,7 +5,7 @@ description: What is ZigBolt and why use it for HFT messaging
 
 # ZigBolt
 
-ZigBolt is an ultra-low-latency, lock-free messaging system written in pure Zig, designed as a direct competitor to [Aeron](https://github.com/real-logic/aeron) for high-frequency trading systems. Zero GC pauses, zero JVM safepoints, zero runtime overhead.
+ZigBolt is an ultra-low-latency, lock-free messaging system written in pure Zig for high-frequency trading systems. Zero GC pauses, zero JVM safepoints, zero runtime overhead.
 
 ## Why ZigBolt?
 
