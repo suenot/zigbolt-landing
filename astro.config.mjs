@@ -28,6 +28,16 @@ export default defineConfig({
 				replacesTitle: false,
 			},
 			customCss: ['./src/styles/custom.css'],
+			head: [
+				{
+					tag: 'link',
+					attrs: { rel: 'preconnect', href: 'https://zigbolt.dev' }
+				},
+				{
+					tag: 'meta',
+					attrs: { name: 'theme-color', content: '#0b0b0d' }
+				}
+			],
 			sidebar: [
 				{
 					label: 'Getting Started',
@@ -68,4 +78,25 @@ export default defineConfig({
 			],
 		}),
 	],
+	vite: {
+		build: {
+			// Increase inline limit to pull more small scripts into the main bundle
+			// avoiding extra network rounds for tiny utilities
+			assetsInlineLimit: 10240,
+			rollupOptions: {
+				output: {
+					// Inline dynamic imports if they are small enough
+					// effectively flattening the dependency tree
+					manualChunks(id) {
+						if (id.includes('node_modules')) {
+							if (id.includes('@astrojs/starlight')) {
+								return 'starlight-core';
+							}
+							return 'vendor';
+						}
+					}
+				}
+			}
+		}
+	}
 });

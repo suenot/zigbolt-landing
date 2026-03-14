@@ -29,6 +29,22 @@
 	display: flex;
 	gap: 1.5rem !important;
 	align-items: center !important;
+	flex-wrap: wrap;
+}
+
+@media (min-width: 50rem) {
+	.actions {
+		flex-wrap: nowrap !important;
+	}
+}
+
+.copy > * {
+	max-width: 65ch !important; /* Give more breathing room */
+}
+
+.tagline {
+	line-height: 1.6 !important;
+	opacity: 0.8;
 }
 
 html, body {
