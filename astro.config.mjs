@@ -13,10 +13,12 @@ export default defineConfig({
 		starlight({
 			title: 'ZigBolt',
 			description: 'Ultra-Low Latency Messaging System for HFT',
+			defaultColorMode: 'dark',
 			components: {
 				// Override Hero to add fetchpriority="high" on LCP image
 				Hero: './src/components/Hero.astro',
 				Footer: './src/components/Footer.astro',
+				ThemeSelect: './src/components/Empty.astro',
 			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/suenot/zigbolt' },
