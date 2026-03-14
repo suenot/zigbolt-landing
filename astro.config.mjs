@@ -30,10 +30,6 @@ export default defineConfig({
 			customCss: ['./src/styles/custom.css'],
 			head: [
 				{
-					tag: 'link',
-					attrs: { rel: 'preconnect', href: 'https://zigbolt.dev' }
-				},
-				{
 					tag: 'meta',
 					attrs: { name: 'theme-color', content: '#0b0b0d' }
 				}
@@ -89,9 +85,8 @@ export default defineConfig({
 					// effectively flattening the dependency tree
 					manualChunks(id) {
 						if (id.includes('node_modules')) {
-							if (id.includes('@astrojs/starlight')) {
-								return 'starlight-core';
-							}
+							// Combine everything from node_modules into a single vendor chunk
+							// This eliminates the chained dependency problem
 							return 'vendor';
 						}
 					}
