@@ -13,7 +13,6 @@ export default defineConfig({
 		starlight({
 			title: 'ZigBolt',
 			description: 'Ultra-Low Latency Messaging System for HFT',
-			defaultColorMode: 'dark',
 			components: {
 				// Override Hero to add fetchpriority="high" on LCP image
 				Hero: './src/components/Hero.astro',
