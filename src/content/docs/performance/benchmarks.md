@@ -247,7 +247,8 @@ characterize how payload size affects publish/poll performance.
 
 ## Results Format
 
-All latency benchmarks output HDR histogram percentiles:
+All latency benchmarks output HDR histogram percentiles. The sample outputs
+below are illustrative of the format only — they are not measured claims:
 
 ```
 === Results ===

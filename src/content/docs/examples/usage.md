@@ -14,10 +14,11 @@ Practical examples showing how to use each major ZigBolt subsystem.
 - [UDP Networking](#udp-networking)
 - [Wire Codec Usage](#wire-codec-usage)
 - [Archive Record / Replay](#archive-record--replay)
-- [Raft Cluster](#raft-cluster)
+- [Raft Cluster](#raft-cluster-experimental)
 - [Sequencer (Total Ordering)](#sequencer-total-ordering)
 - [Transport API (High-Level)](#transport-api-high-level)
 - [Raw Publisher / Subscriber](#raw-publisher--subscriber)
+- [Language Bindings (C / Rust / Python / Go / TypeScript)](#language-bindings-c--rust--python--go--typescript)
 
 ---
 
@@ -429,7 +430,13 @@ pub fn main() !void {
 
 ---
 
-## Raft Cluster
+## Raft Cluster (Experimental)
+
+> **Experimental.** The Raft module is not yet production-validated. There
+> are no built-in election timers or transport loop — as the examples below
+> show, the embedding application drives elections, delivers messages between
+> nodes, and calls `tick()`. Durable persistence (WAL, persisted vote/term,
+> atomic snapshots, crash recovery) is available via `initWithPersistence`.
 
 ### Setting Up a 3-Node Cluster
 
@@ -692,3 +699,85 @@ pub fn main() !void {
     _ = subscriber.poll(&handleRaw, 100);
 }
 ```
+
+---
+
+## Language Bindings (C / Rust / Python / Go / TypeScript)
+
+ZigBolt ships five language bindings over the C-ABI shared library, in the
+repository's `bindings/` directory. All five build and pass smoke tests
+against the real library (version 0.2.1). Build the library first
+(`zig build` produces `zig-out/lib/libzigbolt.{dylib,so}`); most bindings
+locate it via the shared `ZIGBOLT_LIB_PATH` environment variable.
+
+### C (`bindings/c`)
+
+```c
+#include "zigbolt.h"
+
+void *ch = zigbolt_ipc_create("/my-channel", ZIGBOLT_DEFAULT_TERM_LENGTH);
+zigbolt_publish(ch, data, len, /* msg_type_id */ 1);
+zigbolt_poll(ch, my_handler, /* limit */ 10);
+zigbolt_ipc_destroy(ch);
+```
+
+### Rust (`bindings/rust`)
+
+```rust
+use zigbolt::IpcChannel;
+
+let pub_ch = IpcChannel::create("/my-channel", 1 << 20)?;
+pub_ch.publish(b"hello", 1)?;
+
+let sub_ch = IpcChannel::open("/my-channel", 1 << 20)?;
+sub_ch.poll(|data, msg_type_id| {
+    println!("got {} bytes, type={}", data.len(), msg_type_id);
+}, 10);
+```
+
+### Python (`bindings/python`)
+
+```python
+from zigbolt import IpcChannel
+
+with IpcChannel.create("/my-channel") as ch:
+    ch.publish(b"hello world", msg_type_id=1)
+
+with IpcChannel.open("/my-channel") as ch:
+    ch.poll(lambda data, msg_type_id: print(data, msg_type_id), limit=10)
+```
+
+### Go (`bindings/go`)
+
+```go
+ch, err := zigbolt.CreateChannel("/my-channel", 1<<20)
+if err != nil {
+    log.Fatal(err)
+}
+defer ch.Close()
+
+ch.Publish([]byte("hello"), 1)
+
+sub, _ := zigbolt.OpenChannel("/my-channel", 1<<20)
+defer sub.Close()
+sub.Poll(func(data []byte, msgTypeId int32) {
+    fmt.Printf("Received [type=%d]: %s\n", msgTypeId, data)
+}, 10)
+```
+
+### TypeScript / Node.js (`bindings/ts`)
+
+```typescript
+import { IpcChannel } from "@zigbolt/node";
+
+const channel = IpcChannel.create({ name: "/my-channel", termLength: 1 << 20 });
+channel.publish(Buffer.from("hello"), /* msgTypeId */ 1);
+
+const sub = IpcChannel.open({ name: "/my-channel", termLength: 1 << 20 });
+sub.poll((data, length, msgTypeId) => {
+  console.log(`Received [type=${msgTypeId}]: ${data.toString("utf-8")}`);
+}, /* limit */ 100);
+```
+
+See each binding's README under `bindings/` for full setup, examples, and
+API details.

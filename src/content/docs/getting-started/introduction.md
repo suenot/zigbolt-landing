@@ -17,9 +17,21 @@ Traditional HFT messaging systems are either:
 ZigBolt combines the best of both worlds:
 
 - **Zero overhead** like C — no GC, no runtime, direct hardware access
-- **Safety** — comptime validation, no undefined behavior, clear error handling
+- **Safety** — comptime validation, bounds-checked handling of untrusted input (shared-memory headers, network datagrams), clear error handling
 - **Simplicity** — single file per module, no build system complexity, cross-compilation built in
-- **Performance** — sub-200ns IPC, 100M+ msg/sec codec throughput
+- **Performance** — designed for sub-200ns IPC and 100M+ msg/sec codec throughput (design targets — run the bundled benchmarks on your hardware)
+
+## Current Status
+
+- 423 tests pass (`zig build test`), in both Debug and ReleaseFast builds.
+- `zig build` produces the C-ABI shared library, and all five language
+  bindings (C, Rust, Python, Go, TypeScript) build and pass smoke tests
+  against it.
+- The Raft consensus module is **experimental**: durable persistence (WAL,
+  persisted vote/term, atomic snapshots, crash recovery) is wired in, but
+  election timers and message transport are the embedder's responsibility,
+  and it has not yet been validated with multi-process fault injection.
+- Performance numbers are design targets, not measured results.
 
 ## Architecture
 
@@ -69,6 +81,6 @@ ZigBolt is organized into seven layers, each depending only on layers below it:
 | **NetworkChannel** | `src/channel/network.zig` | Reliable ordered UDP |
 | **BroadcastBuffer** | `src/core/broadcast.zig` | 1-to-N fan-out for market data |
 | **Archive** | `src/archive/archive.zig` | Segment-based message recording/replay |
-| **RaftNode** | `src/cluster/raft.zig` | Raft consensus: election, replication |
+| **RaftNode** | `src/cluster/raft.zig` | Raft consensus: election, replication (*experimental*) |
 | **Sequencer** | `src/sequencer/sequencer.zig` | Total-order sequence assignment |
-| **FFI** | `src/ffi/exports.zig` | C-ABI exports for cross-language use |
+| **FFI** | `src/ffi/exports.zig` | C-ABI exports used by the C, Rust, Python, Go, and TypeScript bindings |

@@ -34,8 +34,8 @@ import { Card, CardGrid, Badge } from '@astrojs/starlight/components';
   <Card title="100M+ msg/sec" icon="star">
     Comptime wire codecs targeting 100M+ encode/decode operations per second.
   </Card>
-  <Card title="~100 KB Binary" icon="seti:zig">
-    The release shared library compiles to under ~100 KB. No JVM, no runtime, no garbage collector.
+  <Card title="No Runtime, No GC" icon="seti:zig">
+    A single native shared library (about a megabyte). No JVM, no runtime, no garbage collector.
   </Card>
 </CardGrid>
 
@@ -51,14 +51,17 @@ import { Card, CardGrid, Badge } from '@astrojs/starlight/components';
   <Card title="Aeron-Compatible Protocol" icon="setting">
     Wire protocol flyweights (DataHeader, StatusMessage, NAK, Setup, RTT, Error). AIMD congestion control. Min/Max/Tagged flow control.
   </Card>
-  <Card title="Raft Consensus" icon="approve-check-circle">
-    Leader election, log replication, write-ahead log with CRC32 validation, snapshots, and crash recovery.
+  <Card title="Raft Consensus (Experimental)" icon="approve-check-circle">
+    Leader election, log replication, durable write-ahead log, persisted vote/term, atomic snapshots, and crash recovery. Experimental: liveness (election timers, transport) is the embedder's responsibility, and it has not yet been validated with multi-process fault injection.
   </Card>
   <Card title="Archive & Replay" icon="open-book">
-    Segment-based message recording. Catalog with time/stream queries. Sparse index. LZ4-style compression.
+    Segment-based message recording with per-record CRC32 and configurable fsync. Catalog with time/stream queries. Sparse index. Standalone LZ4-style compression utility.
   </Card>
-  <Card title="Cross-Language FFI" icon="translate">
-    C-ABI shared library exports for C, Rust, and Python integration.
+  <Card title="Five Language Bindings" icon="translate">
+    C, Rust, Python, Go, and TypeScript bindings — all five build and pass smoke tests against the C-ABI shared library.
+  </Card>
+  <Card title="Hardened & Tested" icon="seti:lock">
+    423 tests pass in both Debug and ReleaseFast. The IPC shared-memory header is treated as untrusted (bounds-checked), ring buffers are memory-safe with back-pressure, and the FIX/SBE/flyweight wire parsers validate untrusted input — a malformed datagram cannot cause out-of-bounds access or panics.
   </Card>
 </CardGrid>
 
@@ -71,8 +74,8 @@ import { Card, CardGrid, Badge } from '@astrojs/starlight/components';
 | SBE Codec | Native | XML codegen | Chronicle Wire | No |
 | GC Pauses | None | JVM GC | JVM GC | None |
 | Reliability | NAK-based | NAK-based | Replication | REQ/REP |
-| Cluster | Raft | Raft | Enterprise | None |
-| Binary Size | ~100 KB | ~20 MB | ~50 MB | ~1 MB |
+| Cluster | Raft (experimental) | Raft | Enterprise | None |
+| Binary Size | ~1 MB (no JVM) | ~20 MB | ~50 MB | ~1 MB |
 
 Latency figures for ZigBolt are design targets; figures for other systems are
 their publicly stated numbers. Benchmark on your own hardware.

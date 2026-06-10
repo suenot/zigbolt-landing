@@ -28,6 +28,12 @@ zig build test         # Run all unit tests (423 tests)
 zig build bench        # Run the full benchmark suite (bench/run_all.zig)
 ```
 
+The test suite passes in both Debug and ReleaseFast:
+
+```bash
+zig build test -Doptimize=ReleaseFast
+```
+
 ### Build Options
 
 ZigBolt builds with `-OReleaseFast` for benchmarks to enable maximum optimization.
@@ -64,7 +70,7 @@ const zigbolt = b.dependency("zigbolt", .{
 exe.root_module.addImport("zigbolt", zigbolt.module("zigbolt"));
 ```
 
-## FFI (C / Rust / Python)
+## FFI & Language Bindings (C / Rust / Python / Go / TypeScript)
 
 Build the shared library:
 
@@ -73,6 +79,23 @@ zig build
 # Output: zig-out/lib/libzigbolt.so (Linux) or libzigbolt.dylib (macOS),
 #         plus the static archive zig-out/lib/libzigbolt.a
 ```
+
+All five language bindings build and pass smoke tests against this library
+(each reports version 0.2.1). They live in the repository's `bindings/`
+directory:
+
+| Language | Directory | Setup |
+|----------|-----------|-------|
+| C | `bindings/c` | `make` (or CMake); pass `ZIGBOLT_LIB_PATH=/path/to/zig-out/lib` if needed |
+| Rust | `bindings/rust` | `cargo build`; override the library location with `ZIGBOLT_LIB_PATH` |
+| Python | `bindings/python` | `pip install .`; finds the library via `ZIGBOLT_LIB_PATH` or a sibling `zig-out/lib` |
+| Go | `bindings/go` | `go build ./...` (cgo); defaults to the sibling `zig-out/lib`, override with `CGO_LDFLAGS` |
+| TypeScript / Node.js | `bindings/ts` | `npm install`; set `ZIGBOLT_LIB_PATH` if needed |
+
+The `ZIGBOLT_LIB_PATH` environment variable is shared across the bindings
+that locate the library at build/run time. It may point at the library file
+itself or at the directory that contains it (for example
+`/path/to/zigbolt/zig-out/lib`).
 
 ### C
 

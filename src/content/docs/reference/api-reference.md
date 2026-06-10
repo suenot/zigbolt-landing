@@ -648,6 +648,15 @@ Maps sequence numbers to stream/offset for replay.
 
 ## Cluster (Raft Consensus)
 
+> **Experimental.** The Raft module applies only committed entries, validates
+> vote/response terms, supports single-node election, and persists durably
+> (WAL + persisted vote/term + atomic snapshots + crash recovery on restart).
+> However, there are no built-in election timers or transport loop — driving
+> timeouts and delivering messages between nodes is the embedder's
+> responsibility — and there is no log compaction, InstallSnapshot RPC, or
+> membership change support. It has not yet been validated with real
+> multi-process fault injection. Do not treat it as production-ready.
+
 ### `RaftConfig`
 
 ```zig
@@ -1424,3 +1433,9 @@ C-ABI functions exported from `src/ffi/exports.zig`:
 
 `zig build` produces the shared library (`zig-out/lib/libzigbolt.dylib` on
 macOS, `.so` on Linux) and the static archive `zig-out/lib/libzigbolt.a`.
+
+Five language bindings — C, Rust, Python, Go, and TypeScript — are maintained
+in the repository's `bindings/` directory. All five build and pass smoke
+tests against this library (version 0.2.1). See
+[Installation](/getting-started/installation/) for per-language setup,
+including the shared `ZIGBOLT_LIB_PATH` environment variable.

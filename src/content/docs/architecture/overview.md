@@ -181,6 +181,12 @@ Total size: 4096 + 3 * term_length
 CL = cache_line_size (128 bytes on modern CPUs)
 ```
 
+The metadata header is treated as **untrusted input**: magic, version, term
+length, and the shared positions are validated (bounds-checked) on open and
+during polling, so a corrupt or malicious shared-memory segment results in an
+error (`InvalidChannel`, `CorruptChannel`, ...) rather than out-of-bounds
+access.
+
 ### NetworkHeader (Network Protocol)
 
 `extern struct` with C layout -- 32 bytes total including alignment padding:
@@ -274,13 +280,18 @@ Single-threaded event loop:
 2. `poll()` -- receive UDP datagrams, track sequences, reassemble, deliver
 3. NAK generation happens at the end of each poll cycle
 
-### Raft Cluster
+### Raft Cluster (Experimental)
 
 Each node runs a single-threaded tick loop:
 1. Receive messages from peers
 2. Handle via `handleMessage()` (state transitions, log replication)
 3. `tick()` applies committed entries to the state machine
 4. Heartbeats sent periodically by the leader
+
+Note: ZigBolt does not provide built-in election timers or a message
+transport loop for Raft — the embedding application drives timeouts and
+delivers messages between nodes. The module is experimental and has not yet
+been validated with multi-process fault injection.
 
 ## Data Flow: Publish to Receive
 
@@ -559,7 +570,8 @@ Recovery: sequential scan, CRC validation, truncation of corrupt tail.
 
 ## Snapshot Format
 
-Raft state snapshots for log compaction:
+Raft state snapshots (point-in-time state capture with CRC validation;
+automatic log compaction and the InstallSnapshot RPC are not yet implemented):
 
 ```
 Offset  Size     Field                Description
