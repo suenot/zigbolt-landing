@@ -4,7 +4,7 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://zigbolt.dev',
+	site: 'https://zigbolt.marketmaker.cc',
 	build: {
 		// Inline all CSS to eliminate render-blocking stylesheet requests (Lighthouse)
 		inlineStylesheets: 'always',
@@ -31,7 +31,7 @@ export default defineConfig({
 			head: [
 				{
 					tag: 'link',
-					attrs: { rel: 'dns-prefetch', href: 'https://zigbolt.dev' }
+					attrs: { rel: 'dns-prefetch', href: 'https://zigbolt.marketmaker.cc' }
 				},
 				{
 					tag: 'meta',
