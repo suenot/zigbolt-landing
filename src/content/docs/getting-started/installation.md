@@ -24,7 +24,7 @@ zig build
 
 ```bash
 zig build              # Build all targets (FFI shared + static library, benchmarks)
-zig build test         # Run all unit tests (423 tests)
+zig build test         # Run all unit tests (494 tests)
 zig build bench        # Run the full benchmark suite (bench/run_all.zig)
 ```
 

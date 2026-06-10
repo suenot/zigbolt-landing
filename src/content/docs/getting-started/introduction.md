@@ -23,7 +23,11 @@ ZigBolt combines the best of both worlds:
 
 ## Current Status
 
-- 423 tests pass (`zig build test`), in both Debug and ReleaseFast builds.
+- 494 tests pass (`zig build test`), in both Debug and ReleaseFast builds, on
+  macOS and Linux.
+- Line coverage is measured with kcov on Linux: 98.3% raw, 100% of measurable
+  lines (audited exclusions only for kcov attribution gaps and OS-failure
+  branches that cannot be injected in-process).
 - `zig build` produces the C-ABI shared library, and all five language
   bindings (C, Rust, Python, Go, TypeScript) build and pass smoke tests
   against it.

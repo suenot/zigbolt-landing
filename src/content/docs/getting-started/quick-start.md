@@ -21,7 +21,7 @@ zig build
 zig build test
 ```
 
-All 423 tests should pass — in both Debug and ReleaseFast
+All 494 tests should pass — in both Debug and ReleaseFast
 (`zig build test -Doptimize=ReleaseFast`).
 
 ## Run Benchmarks
