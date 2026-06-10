@@ -21,7 +21,7 @@ zig build
 zig build test
 ```
 
-All 199 tests should pass.
+All 423 tests should pass.
 
 ## Run Benchmarks
 
@@ -66,7 +66,7 @@ const zigbolt = @import("zigbolt");
 
 var tick_count: u64 = 0;
 
-fn handleTick(msg: *const zigbolt.TickMessage) void {
+fn handleTick(msg: *align(1) const zigbolt.TickMessage) void {
     tick_count += 1;
     if (tick_count % 100_000 == 0) {
         const latency = zigbolt.timestampNs() - msg.timestamp_ns;

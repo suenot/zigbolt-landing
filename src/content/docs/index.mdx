@@ -22,20 +22,20 @@ hero:
 
 import { Card, CardGrid, Badge } from '@astrojs/starlight/components';
 
-## Key Performance Numbers
+## Performance Targets
 
 <CardGrid>
   <Card title="< 200ns IPC Latency" icon="rocket">
-    Shared memory channels with cache-line-padded atomics deliver sub-200ns p50 round-trip latency.
+    Shared memory channels with cache-line-padded atomics, designed for sub-200ns p50 round-trip latency (design target — run the bundled benchmarks on your hardware).
   </Card>
   <Card title="Zero Copy" icon="document">
     Messages decoded in-place via pointer cast. No serialization overhead on the hot path.
   </Card>
   <Card title="100M+ msg/sec" icon="star">
-    Comptime wire codecs achieve 100M+ encode/decode operations per second.
+    Comptime wire codecs targeting 100M+ encode/decode operations per second.
   </Card>
   <Card title="~100 KB Binary" icon="seti:zig">
-    Entire library compiles to ~100 KB. No JVM, no runtime, no garbage collector.
+    The release shared library compiles to under ~100 KB. No JVM, no runtime, no garbage collector.
   </Card>
 </CardGrid>
 
@@ -67,14 +67,19 @@ import { Card, CardGrid, Badge } from '@astrojs/starlight/components';
 | Feature | ZigBolt | Aeron | Chronicle Queue | ZeroMQ |
 |---------|---------|-------|-----------------|--------|
 | Language | Zig | Java/C++ | Java | C |
-| IPC Latency (p50) | < 200 ns | ~200 ns | ~1 us | ~10 us |
+| IPC Latency (p50) | < 200 ns (target) | ~200 ns | ~1 us | ~10 us |
 | SBE Codec | Native | XML codegen | Chronicle Wire | No |
 | GC Pauses | None | JVM GC | JVM GC | None |
 | Reliability | NAK-based | NAK-based | Replication | REQ/REP |
 | Cluster | Raft | Raft | Enterprise | None |
 | Binary Size | ~100 KB | ~20 MB | ~50 MB | ~1 MB |
 
-## Used In Production
+Latency figures for ZigBolt are design targets; figures for other systems are
+their publicly stated numbers. Benchmark on your own hardware.
+
+## Related Projects
+
+ZigBolt is developed alongside these projects by the same team:
 
 <CardGrid>
   <Card title="Marketmaker.cc" icon="star">
@@ -82,7 +87,7 @@ import { Card, CardGrid, Badge } from '@astrojs/starlight/components';
     [marketmaker.cc](https://marketmaker.cc)
   </Card>
   <Card title="StockAPIs.com" icon="star">
-    Real-time market data APIs powering trading infrastructure.
+    Real-time market data APIs.
     [stockapis.com](https://stockapis.com)
   </Card>
 </CardGrid>

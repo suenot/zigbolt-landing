@@ -70,7 +70,9 @@ const TickMessage = zigbolt.TickMessage;
 
 var tick_count: u64 = 0;
 
-fn handleTick(msg: *const TickMessage) void {
+// The decoded pointer aliases the shared-memory frame (zero-copy),
+// so the handler parameter is `*align(1) const T`.
+fn handleTick(msg: *align(1) const TickMessage) void {
     tick_count += 1;
     if (tick_count % 100_000 == 0) {
         const latency = zigbolt.timestampNs() - msg.timestamp_ns;
@@ -487,13 +489,15 @@ pub fn main() !void {
     }
     defer for (&nodes) |*n| n.deinit();
 
-    // Node 0 starts an election
-    const vote_request = nodes[0].node.node.startElection();
+    // Node 0 starts an election. `startElection()` returns the RequestVote
+    // message to broadcast, or null if the node is wedged on a persistence
+    // failure.
+    const vote_request = nodes[0].node.startElection() orelse
+        return error.ElectionFailed;
 
     // Nodes 1 and 2 receive the vote request and respond
     for (1..3) |i| {
-        const response = nodes[i].handleMessage(0, vote_request);
-        if (response) |resp| {
+        if (nodes[i].handleMessage(0, vote_request)) |resp| {
             // Send response back to node 0
             _ = nodes[0].handleMessage(@intCast(i), resp.msg);
         }
@@ -507,10 +511,10 @@ pub fn main() !void {
         std.debug.print("Proposed at log index: {d}\n", .{idx});
     }
 
-    // Simulate replication acknowledgment
-    nodes[0].node.node.match_index[0] = 1;
-    nodes[0].node.node.match_index[1] = 1;
-    nodes[0].node.node.updateCommitIndex();
+    // Simulate replication acknowledgment from both peers
+    nodes[0].node.match_index[0] = 1;
+    nodes[0].node.match_index[1] = 1;
+    nodes[0].node.updateCommitIndex();
 
     // Tick to apply committed entries
     nodes[0].tick();
@@ -552,27 +556,30 @@ pub fn main() void {
 const std = @import("std");
 const zigbolt = @import("zigbolt");
 
-pub fn main() void {
-    var ms = zigbolt.MultiStreamSequencer.init(.{
+pub fn main() !void {
+    // init returns error.TooManyStreams above the 64-stream limit
+    var ms = try zigbolt.MultiStreamSequencer.init(.{
         .initial_sequence = 0,
         .max_streams = 64,
     });
 
+    // sequenceFrom returns error.InvalidStreamId for out-of-range streams
     // Stream 0: Order gateway
-    _ = ms.sequenceFrom(0, "order-new-1");
-    _ = ms.sequenceFrom(0, "order-new-2");
+    _ = try ms.sequenceFrom(0, "order-new-1");
+    _ = try ms.sequenceFrom(0, "order-new-2");
 
     // Stream 1: Market data
-    _ = ms.sequenceFrom(1, "md-tick-1");
+    _ = try ms.sequenceFrom(1, "md-tick-1");
 
     // Stream 2: Risk engine
-    _ = ms.sequenceFrom(2, "risk-check-1");
+    _ = try ms.sequenceFrom(2, "risk-check-1");
 
-    // Per-stream statistics
-    const order_stats = ms.getStreamStats(0);
-    std.debug.print("Order stream: {d} events, last_seq={d}\n", .{
-        order_stats.events_sequenced, order_stats.last_sequence,
-    });
+    // Per-stream statistics (null if the stream id is out of range)
+    if (ms.getStreamStats(0)) |order_stats| {
+        std.debug.print("Order stream: {d} events, last_seq={d}\n", .{
+            order_stats.events_sequenced, order_stats.last_sequence,
+        });
+    }
 
     std.debug.print("Total events: {d}, Active streams: {d}\n", .{
         ms.totalEvents(), ms.active_streams,

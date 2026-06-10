@@ -183,16 +183,18 @@ CL = cache_line_size (128 bytes on modern CPUs)
 
 ### NetworkHeader (Network Protocol)
 
+`extern struct` with C layout -- 32 bytes total including alignment padding:
+
 ```
 Offset  Size  Field            Description
 ------  ----  -----            -----------
 0       1     version          Protocol version (1)
 1       1     header_type      data(0), nak(1), heartbeat(2), setup(3), teardown(4)
-2       4     session_id       Publisher-subscriber pair identifier
-6       4     stream_id        Topic/channel within session
-10      8     sequence         Monotonically increasing per stream
-18      4     payload_length   Bytes following this header
-22      3     _reserved        Padding
+4       4     session_id       Publisher-subscriber pair identifier
+8       4     stream_id        Topic/channel within session
+16      8     sequence         Monotonically increasing per stream
+24      4     payload_length   Bytes following this header
+28      3     _reserved        Padding (struct is padded to 32 bytes)
 ```
 
 ### WireCodec Packed Message Layout
@@ -303,7 +305,7 @@ IpcChannel.poll()           -- acquire-load tail, read frames
 WireCodec.decode()          -- pointer cast into shared memory (zero-copy)
   |
   v
-Subscriber handler(msg)     -- user callback with *const MsgType
+Subscriber handler(msg)     -- user callback with *align(1) const MsgType
 ```
 
 Total copies: 1 (encode). Decode is zero-copy (pointer cast).

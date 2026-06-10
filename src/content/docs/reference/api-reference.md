@@ -65,18 +65,27 @@ fn alignUp(size: u32, alignment: u32) u32;
 
 ```zig
 const SharedRegion = struct {
-    base: [*]u8,
-    size: usize,
-    fn deinit(self: *SharedRegion) void;
+    base: [*]align(std.heap.page_size_min) u8,
+    len: usize,
+    fd: ?posix.fd_t,
+    // Owned copy of the shm name (creator side only; deinit unlinks it).
+    name_buf: [max_shm_name_len:0]u8,
+    name_len: usize,
+
+    fn ptrAt(self: SharedRegion, comptime T: type, byte_offset: usize) *align(cache_line_size) T;
+    fn sliceAt(self: SharedRegion, byte_offset: usize, len: usize) []u8;
+    fn deinit(self: *SharedRegion) void; // munmap + close + unlink (if owner)
 };
 
 const MemoryConfig = struct {
-    use_hugepages: bool = false,
+    use_hugepages: bool = false, // Linux, anonymous regions only (best-effort)
     pre_fault: bool = true,
+    mlock: bool = true,          // lock pages in RAM (prevent swapping)
 };
 
 fn createShared(name: [*:0]const u8, size: usize, config: MemoryConfig) !SharedRegion;
 fn openShared(name: [*:0]const u8, size: usize) !SharedRegion;
+fn createAnonymous(size: usize, config: MemoryConfig) !SharedRegion;
 fn prefault(region: SharedRegion) void;
 ```
 
@@ -198,7 +207,8 @@ const Codec = zigbolt.WireCodec(zigbolt.TickMessage);
 | Method | Signature | Description |
 |--------|-----------|-------------|
 | `encode` | `fn encode(msg: *const T, buf: []u8) void` | Copy message bytes into buffer |
-| `decode` | `fn decode(buf: []const u8) *align(1) const T` | Zero-copy: returns pointer into buffer |
+| `decode` | `fn decode(buf: []const u8) *align(1) const T` | Zero-copy: returns pointer into buffer. Precondition: `buf.len >= wire_size` (length-check first on the hot path) |
+| `decodeChecked` | `fn decodeChecked(buf: []const u8) error{Truncated}!*align(1) const T` | Checked zero-copy decode for untrusted input |
 | `decodeMut` | `fn decodeMut(buf: []u8) *align(1) T` | Mutable zero-copy decode |
 | `batchDecode` | `fn batchDecode(buf: []const u8, out: []T) u32` | Decode multiple messages |
 | `batchEncode` | `fn batchEncode(msgs: []const T, buf: []u8) u32` | Encode multiple messages |
@@ -268,7 +278,10 @@ pub const ReadResult = struct {
 **Errors**:
 - `error.InvalidChannel` -- magic number mismatch on open
 - `error.UnsupportedVersion` -- protocol version mismatch
-- `error.MessageTooLarge` -- payload exceeds `MAX_PAYLOAD_SIZE`
+- `error.InvalidTermLength` / `error.TermLengthMismatch` / `error.ShmTooSmall` -- bad or inconsistent term length on create/open
+- `error.MessageTooLarge` -- payload exceeds the maximum frame payload
+- `error.BackPressure` -- publish would overrun the unconsumed window
+- `error.CorruptChannel` -- shared positions failed validation
 
 ---
 
@@ -281,6 +294,8 @@ pub const UdpConfig = struct {
     bind_address: std.net.Address,
     remote_address: ?std.net.Address = null,
     multicast_group: ?[4]u8 = null,
+    multicast_ttl: ?u8 = null,       // null keeps the OS default (1)
+    multicast_loop: ?bool = null,    // null keeps the OS default (enabled)
     send_buffer_size: u32 = 2 * 1024 * 1024,  // 2 MB
     recv_buffer_size: u32 = 2 * 1024 * 1024,  // 2 MB
     non_blocking: bool = true,
@@ -335,6 +350,9 @@ pub const NetworkConfig = struct {
     max_message_size: u32 = 1 << 20,
     heartbeat_interval_ns: u64 = 100_000_000,     // 100 ms
     nak_delay_ns: u64 = 1_000_000,                // 1 ms
+    expected_peer: ?std.net.Address = null,       // drop datagrams from other sources
+    max_retransmits_per_interval: u32 = 1024,     // NAK-amplification defence
+    retransmit_interval_ns: u64 = 10_000_000,     // 10 ms
 };
 ```
 
@@ -459,7 +477,7 @@ try pub.offer(&tick_msg);
 |--------|-----------|-------------|
 | `init` | `fn init(channel: *IpcChannel, msg_type_id: i32) Self` | Bind to a channel |
 | `offer` | `fn offer(self: *Self, msg: *const MsgType) !void` | Publish a typed message |
-| `tryOffer` | `fn tryOffer(self: *Self, msg: *const MsgType) bool` | Non-blocking publish, returns false on back-pressure |
+| `tryOffer` | `fn tryOffer(self: *Self, msg: *const MsgType) !bool` | Returns `false` on back-pressure; other failures (`MessageTooLarge`, `CorruptChannel`) surface as errors |
 | `offerRaw` | `fn offerRaw(self: *Self, data: []const u8) !void` | Publish pre-encoded bytes |
 
 ### `RawPublisher`
@@ -483,8 +501,8 @@ _ = sub.poll(&handleTick, 100);
 | Method | Signature | Description |
 |--------|-----------|-------------|
 | `init` | `fn init(channel: *IpcChannel, msg_type_id: i32) Self` | Bind to a channel |
-| `poll` | `fn poll(self: *Self, handler: *const fn(*const MsgType) void, limit: u32) u32` | Poll and decode messages |
-| `pollRaw` | `fn pollRaw(self: *Self, handler: *const fn(IpcChannel.ReadResult) void, limit: u32) u32` | Poll raw frames |
+| `poll` | `fn poll(self: *Self, handler: *const fn(*align(1) const MsgType) void, limit: u32) u32` | Poll and decode. Only frames matching `msg_type_id` (and at least `wire_size` bytes) are delivered; non-matching/short frames are consumed and skipped. Returns the number delivered |
+| `pollRaw` | `fn pollRaw(self: *Self, handler: *const fn(IpcChannel.ReadResult) void, limit: u32) u32` | Poll raw frames (no type filter) |
 
 ### `RawSubscriber`
 
@@ -534,12 +552,13 @@ pub const ArchiveConfig = struct {
     base_path: []const u8 = "/tmp/zigbolt/archive",
     sync_policy: SyncPolicy = .periodic,
     sync_interval_ms: u32 = 1000,
-    compression: ?CompressionAlgo = null,
 
     pub const SyncPolicy = enum { none, periodic, every_segment };
-    pub const CompressionAlgo = enum { lz4, zstd };
 };
 ```
+
+(Compression is a standalone module -- see [Compression](#compression) -- and
+is not yet wired into the archive recording path.)
 
 ### `Archive`
 
@@ -608,9 +627,9 @@ Merges multiple input streams into one globally ordered output.
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `init` | `fn init(config: SequencerConfig) MultiStreamSequencer` | Initialize |
-| `sequenceFrom` | `fn sequenceFrom(self, stream_id: u32, payload: []const u8) SequencedEvent` | Sequence from a specific stream |
-| `getStreamStats` | `fn getStreamStats(self, stream_id: u32) StreamStats` | Per-stream statistics |
+| `init` | `fn init(config: SequencerConfig) error{TooManyStreams}!MultiStreamSequencer` | Initialize (max 64 streams) |
+| `sequenceFrom` | `fn sequenceFrom(self, stream_id: u32, payload: []const u8) error{InvalidStreamId}!SequencedEvent` | Sequence from a specific stream |
+| `getStreamStats` | `fn getStreamStats(self, stream_id: u32) ?StreamStats` | Per-stream statistics (`null` if out of range) |
 | `totalEvents` | `fn totalEvents(self) u64` | Total events across all streams |
 
 ### `SequenceIndex`
@@ -647,16 +666,27 @@ Full Raft consensus implementation.
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `init` | `fn init(allocator: Allocator, config: RaftConfig) !RaftNode` | Initialize as follower |
+| `init` | `fn init(allocator: Allocator, config: RaftConfig) !RaftNode` | Initialize as follower (in-memory only) |
+| `initWithPersistence` | `fn initWithPersistence(allocator: Allocator, config: RaftConfig, persistence: ?RaftPersistence) !RaftNode` | Initialize with an optional durable backend (WAL + vote file + optional snapshots); recovers term/vote/log/snapshot from disk |
 | `deinit` | `fn deinit(self: *RaftNode) void` | Free resources |
-| `handleMessage` | `fn handleMessage(self, from: u32, msg: RaftMessage) ?MessageResponse` | Handle incoming Raft message |
-| `startElection` | `fn startElection(self) RaftMessage` | Begin leader election |
-| `propose` | `fn propose(self, data: []const u8) !u64` | Propose a log entry (leader only) |
-| `createAppendEntries` | `fn createAppendEntries(self, peer_id: u32) AppendEntries` | Create replication message for peer |
-| `createHeartbeat` | `fn createHeartbeat(self) AppendEntries` | Create empty heartbeat |
+| `handleMessage` | `fn handleMessage(self, from: u32, msg: RaftMessage) ?MessageResponse` | Handle incoming Raft message; returns the response to send back, if any |
+| `startElection` | `fn startElection(self) ?RaftMessage` | Begin leader election. Returns the RequestVote to broadcast, or `null` if the node is wedged on a persistence failure |
+| `propose` | `fn propose(self, data: []const u8) !u64` | Propose a log entry (leader only). Returns the log index; `error.NotLeader` otherwise |
+| `createAppendEntries` | `fn createAppendEntries(self, peer_id: u32) ?AppendEntries` | Create replication message for a peer (`null` for unknown peer / wedged node) |
+| `createHeartbeat` | `fn createHeartbeat(self, peer_id: u32) ?AppendEntries` | Create empty heartbeat for a peer |
+| `takeSnapshot` | `fn takeSnapshot(self, state_data: []const u8) !void` | Persist a point-in-time state snapshot (requires persistence with snapshots) |
 | `getApplicableEntries` | `fn getApplicableEntries(self) []const StoredEntry` | Get committed but unapplied entries |
 | `markApplied` | `fn markApplied(self, up_to: u64) void` | Mark entries as applied |
 | `updateCommitIndex` | `fn updateCommitIndex(self) void` | Recalculate commit index from match_index |
+
+**RaftPersistence**:
+```zig
+pub const RaftPersistence = struct {
+    wal: *WriteAheadLog,
+    vote_path: []const u8,
+    snapshots: ?*SnapshotManager = null,
+};
+```
 
 **NodeState**: `enum { follower, candidate, leader }`
 
@@ -700,7 +730,8 @@ High-level cluster that wraps RaftNode and a StateMachine.
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `init` | `fn init(allocator: Allocator, config: ClusterConfig, sm: ?StateMachine) !Cluster` | Initialize |
+| `init` | `fn init(allocator: Allocator, config: ClusterConfig, sm: ?StateMachine) !Cluster` | Initialize (in-memory) |
+| `initWithPersistence` | `fn initWithPersistence(allocator: Allocator, config: ClusterConfig, sm: ?StateMachine, persistence: ?RaftPersistence) !Cluster` | Initialize with durable backend; restores the state machine from the recovered snapshot via `restore_fn` |
 | `deinit` | `fn deinit(self: *Cluster) void` | Shut down |
 | `propose` | `fn propose(self, data: []const u8) !u64` | Propose command (leader only) |
 | `handleMessage` | `fn handleMessage(self, from: u32, msg: RaftMessage) ?MessageResponse` | Process message |
@@ -775,7 +806,7 @@ Persistent Raft vote state (16-byte file).
 Manages Raft snapshots on disk with CRC32 validation.
 
 ```zig
-var mgr = SnapshotManager.init(allocator, .{
+var mgr = try SnapshotManager.init(allocator, .{
     .base_path = "/var/lib/zigbolt/snapshots",
     .snapshot_interval = 10000,
 });
@@ -784,7 +815,7 @@ defer mgr.deinit();
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `init` | `fn init(allocator: Allocator, config: SnapshotConfig) SnapshotManager` | Initialize |
+| `init` | `fn init(allocator: Allocator, config: SnapshotConfig) !SnapshotManager` | Initialize (fails on overly long base path) |
 | `deinit` | `fn deinit(self: *SnapshotManager) void` | Cleanup |
 | `shouldSnapshot` | `fn shouldSnapshot(self) bool` | True if interval reached |
 | `onEntryCommitted` | `fn onEntryCommitted(self) void` | Track committed entries |
@@ -872,38 +903,96 @@ Fixed-point decimal for financial prices. Only the mantissa is transmitted on th
 
 ## FIX Messages
 
-SBE-encoded FIX protocol messages in `src/codec/fix_messages.zig`.
+SBE-encoded FIX protocol messages in `src/codec/fix_messages.zig`
+(`zigbolt.fix`). Schema: `SCHEMA_ID = 1`, `SCHEMA_VERSION = 1`. Wire format
+per message: `[MessageHeader (8 bytes)][root block (BLOCK_LENGTH bytes)][groups...]`.
 
 ### Enum Types
 
+Enum values follow the CME/iLink convention -- most are ASCII character codes:
+
 ```zig
 pub const Side = enum(u8) { buy = 1, sell = 2 };
-pub const OrdType = enum(u8) { market = 1, limit = 2, stop = 3, stop_limit = 4 };
+pub const OrdType = enum(u8) { market = 1, limit = 2, stop = 3, stop_limit = 4, market_limit = 75 }; // 75 = 'K'
 pub const TimeInForce = enum(u8) { day = 0, gtc = 1, ioc = 3, gtd = 6 };
-pub const ExecType = enum(u8) { new = 0, fill = 1, partial_fill = 2, canceled = 4, rejected = 8 };
-pub const OrdStatus = enum(u8) { new = 0, partially_filled = 1, filled = 2, canceled = 4, rejected = 8 };
-pub const MDUpdateAction = enum(u8) { new = 0, change = 1, delete = 2 };
-pub const MDEntryType = enum(u8) { bid = 0, offer = 1, trade = 2 };
+pub const ExecType = enum(u8) {           // ASCII codes
+    new = 48,          // '0'
+    partial_fill = 49, // '1'
+    fill = 50,         // '2'
+    canceled = 52,     // '4'
+    replaced = 53,     // '5'
+    rejected = 56,     // '8'
+    expired = 67,      // 'C'
+    trade = 70,        // 'F'
+    status = 73,       // 'I'
+};
+pub const OrdStatus = enum(u8) {          // ASCII codes
+    new = 48, partial_fill = 49, filled = 50, canceled = 52,
+    replaced = 53, rejected = 56, expired = 67,
+};
+pub const MDUpdateAction = enum(u8) { new = 0, change = 1, delete = 2, overlay = 5 };
+pub const MDEntryType = enum(u8) {        // ASCII codes
+    bid = 48, offer = 49, trade = 50, opening_price = 52, settlement = 54,
+    session_high = 55, session_low = 56, trade_volume = 66, open_interest = 67,
+};
 ```
+
+Also defined: `HandInst`, `CustomerOrFirm`, `BooleanType`, fixed-length string
+types `String2/3/6/10/12/20/23` (`FixedString(N)`), `Decimal64` (constant
+exponent -7, mantissa-only on wire), and `IntQty32`.
 
 ### Fixed-Block Messages
 
-| Message | Template ID | Block Size | Fields |
-|---------|-------------|------------|--------|
-| `NewOrderSingle` | 1 | 57 bytes | cl_ord_id, account, symbol, side, transact_time, order_qty, ord_type, price, stop_px, time_in_force |
-| `ExecutionReport` | 2 | 89 bytes | order_id, cl_ord_id, exec_id, ord_status, exec_type, symbol, side, leaves_qty, cum_qty, avg_px, transact_time, text_len |
-| `Heartbeat` | 5 | 16 bytes | test_req_id, timestamp_ns |
-| `Logon` | 6 | 20 bytes | heart_bt_int, encrypt_method, reset_seq_num_flag, timestamp_ns |
+Every message's `BLOCK_LENGTH` is `@sizeOf(struct)` -- the messages are
+`extern struct`s copied directly to/from the wire.
+
+| Message | Template ID | FIX MsgType | Key Fields |
+|---------|-------------|-------------|------------|
+| `NewOrderSingle` | 68 | `D` | account, cl_ord_id, order_qty, ord_type, price_mantissa, side, symbol, time_in_force, transact_time, stop_px_mantissa, ... |
+| `OrderCancelRequest` | 70 | `F` | account, cl_ord_id, order_id, orig_cl_ord_id, side, symbol, transact_time, ... |
+| `OrderCancelReplaceRequest` | 71 | `G` | same shape as NewOrderSingle + order_id, orig_cl_ord_id |
+| `ExecutionReport` | 56 | `8` | order_id, cl_ord_id, exec_type, ord_status, symbol, side, leaves_qty, cum_qty, avg_px_mantissa, last_qty, last_px_mantissa, ... |
+| `Heartbeat` | 48 | `0` | timestamp |
+| `Logon` | 65 | `A` | heart_bt_int, username, password, reset_seq_num |
+| `Logout` | 53 | `5` | session_status, text |
 
 ### Group-Based Messages
 
-| Message | Template ID | Description |
-|---------|-------------|-------------|
-| `MarketDataIncrementalRefresh` | 3 | MD entries group (action, type, symbol, price, size, etc.) |
-| `MassQuote` | 4 | Quote sets group, each with nested quote entries |
+| Message | Template ID | FIX MsgType | Structure |
+|---------|-------------|-------------|-----------|
+| `MarketDataIncrementalRefresh` | 88 | `X` | root `MdIncRefreshRoot` (trade_date) + group of `MdIncGrpEntry` (md_update_action, md_entry_type, security_id, md_entry_px_mantissa, ...) |
+| `MarketDataSnapshotFullRefresh` | 87 | `W` | root `MdSnapRefreshRoot` (security_id, symbol, trading_session_id) + group of `MdFullGrpEntry` |
+| `MassQuote` | 105 | `i` | root `MassQuoteRoot` + nested groups: QuoteSets (`QuoteSetEntry`) each containing QuoteEntries (`QuoteEntry`) |
 
-Each group-based message provides an `encode()` method (returns `SbeEncoder` for streaming)
-and a `decode()` method (returns `SbeDecoder` positioned after the root block).
+### Encode / Decode API
+
+Encoding writes header + block(s) into a caller buffer and returns the byte
+count (0 if the buffer is too small):
+
+```zig
+pub fn encode(self: *const T, buf: []u8) usize;                       // fixed-block
+pub fn encode(trade_date: u16, entries: []const MdIncGrpEntry, buf: []u8) usize; // MD incremental
+```
+
+**Decoding is checked**: all decoders validate untrusted wire bytes (lengths,
+group extents, and every exhaustive enum field) before returning a zero-copy
+view, and return `DecodeError!...`:
+
+```zig
+pub const DecodeError = error{ Truncated, InvalidGroup, InvalidEnumValue, IndexOutOfRange };
+
+// Fixed-block messages:
+const decoded = try NewOrderSingle.decode(buf);
+// decoded.header: MessageHeader, decoded.msg: *align(1) const NewOrderSingle
+
+// Group messages return a validated view with bounds-checked accessors:
+const md = try MarketDataIncrementalRefresh.decode(buf);
+const e0 = try md.entry(0); // *align(1) const MdIncGrpEntry
+
+const mq = try MassQuote.decode(buf);
+const set = try mq.quoteSet(0);
+const q = try set.entry(0); // *align(1) const QuoteEntry
+```
 
 ---
 
@@ -1330,5 +1419,8 @@ C-ABI functions exported from `src/ffi/exports.zig`:
 | `zigbolt_publish` | `(handle: ?*anyopaque, data: ?[*]const u8, len: u32, msg_type_id: i32) i32` | Publish (0=success) |
 | `zigbolt_poll` | `(handle: ?*anyopaque, callback: ?FragmentHandlerFn, limit: u32) u32` | Poll messages |
 | `zigbolt_version_major` | `() u32` | Major version (0) |
-| `zigbolt_version_minor` | `() u32` | Minor version (1) |
-| `zigbolt_version_patch` | `() u32` | Patch version (0) |
+| `zigbolt_version_minor` | `() u32` | Minor version (2) |
+| `zigbolt_version_patch` | `() u32` | Patch version (1) |
+
+`zig build` produces the shared library (`zig-out/lib/libzigbolt.dylib` on
+macOS, `.so` on Linux) and the static archive `zig-out/lib/libzigbolt.a`.

@@ -19,7 +19,7 @@ codec performance, and data structure operations:
 | Codec Throughput | `bench_codec_throughput` | WireCodec encode/decode rate (single + batch) |
 | SPSC Latency | `bench_spsc_latency` | SPSC ring buffer write/read latency |
 | MPSC Latency | `bench_mpsc_latency` | MPSC ring buffer contention latency |
-| LogBuffer Throughput | `bench_logbuffer_throughput` | LogBuffer claim/commit/read rate |
+| LogBuffer Throughput | `bench_logbuffer` | LogBuffer claim/commit/read rate |
 | IPC Multi-Size | `bench_ipc_multisize` | IPC latency across message sizes |
 | Full Suite | `bench_run_all` | All-in-one suite with JSON output |
 
@@ -31,9 +31,10 @@ All benchmarks are compiled with `-OReleaseFast` for maximum optimization.
 zig build bench
 ```
 
-This compiles all benchmarks and places them in `zig-out/bin/`.
+This builds and **runs** the full suite (`bench/run_all.zig`). A plain
+`zig build` compiles all individual benchmark binaries into `zig-out/bin/`.
 
-To build individually:
+To run individually:
 
 ```bash
 zig build && ./zig-out/bin/bench_ping_pong
@@ -42,7 +43,7 @@ zig build && ./zig-out/bin/bench_udp_rtt
 zig build && ./zig-out/bin/bench_codec_throughput
 zig build && ./zig-out/bin/bench_spsc_latency
 zig build && ./zig-out/bin/bench_mpsc_latency
-zig build && ./zig-out/bin/bench_logbuffer_throughput
+zig build && ./zig-out/bin/bench_logbuffer
 zig build && ./zig-out/bin/bench_ipc_multisize
 zig build && ./zig-out/bin/bench_run_all
 ```
@@ -130,7 +131,7 @@ datagram from one socket and receives it on another, both bound to localhost.
 - Non-blocking: enabled
 
 **Target**:
-- p50 < 5 us (expected to be lower with io_uring on Linux)
+- p50 < 5 us (an io_uring backend is planned and expected to lower this on Linux)
 
 ### WireCodec Throughput
 
@@ -244,61 +245,6 @@ characterize how payload size affects publish/poll performance.
 
 ---
 
-### Broadcast Buffer Throughput
-
-**What**: Measures the 1-to-N broadcast buffer transmit/receive throughput.
-The broadcast buffer uses lossy semantics with lapping detection, making it
-suitable for market data distribution where latest-value-wins.
-
-**Configuration**:
-- Buffer size: 1 MB
-- Message sizes: 32B, 64B
-- Single transmitter, multiple receivers
-- Measures both transmit rate and receive-with-lapping rate
-
-**Target**:
-- Transmit: > 30M msg/sec (64B messages)
-- Receive: > 25M msg/sec per receiver
-
----
-
-### SBE Encode/Decode Throughput
-
-**What**: Measures the SBE (Simple Binary Encoding) codec encode/decode
-throughput for FIX trading messages. SBE provides zero-allocation encoding
-with schema-driven field layout, suitable for FIX Trading Community wire format.
-
-**Configuration**:
-- Message types: NewOrderSingle, ExecutionReport, MarketDataIncrementalRefresh
-- Encoding: schema-driven with MessageHeader (8B) + root block + repeating groups
-- Iterations: 1,000,000 per message type
-- Measures: encode ns/msg, decode ns/msg, round-trip validation
-
-**Target**:
-- NewOrderSingle encode: < 50 ns/msg
-- ExecutionReport decode: < 50 ns/msg
-- Full round-trip (encode + decode): < 100 ns/msg
-
----
-
-### Compression Throughput
-
-**What**: Measures the LZ4-style compression/decompression throughput for
-archive segment data. Compression is used by the archive subsystem to reduce
-storage requirements for recorded message streams.
-
-**Configuration**:
-- Input sizes: 1KB, 4KB, 16KB blocks
-- Data patterns: market data (partially compressible), random (incompressible)
-- Framed API with CRC32 validation
-
-**Target**:
-- Compression: > 500 MB/sec
-- Decompression: > 1 GB/sec
-- Compression ratio: > 2x for structured market data
-
----
-
 ## Results Format
 
 All latency benchmarks output HDR histogram percentiles:
@@ -347,7 +293,7 @@ WireCodec benchmark output:
     [PASS] encode < 10 ns/msg
 ```
 
-Full suite (`bench_run_all`) summary output:
+Full suite (`bench_run_all`) summary output (illustrative — numbers vary by machine):
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════════════╗
@@ -367,27 +313,30 @@ Full suite (`bench_run_all`) summary output:
 The full suite also writes `bench/results.json` with structured data for CI
 integration and automated regression detection.
 
-## Performance Targets vs Expected Actuals
+## Performance Targets
 
-| Benchmark | Metric | Target | Expected (Apple M2) | Expected (Linux x86_64) |
-|-----------|--------|--------|---------------------|------------------------|
-| IPC Ping-Pong | p50 RTT | < 200 ns | ~50-150 ns | ~40-120 ns |
-| IPC Ping-Pong | p99 RTT | < 1,000 ns | ~200-500 ns | ~150-400 ns |
-| IPC Throughput | msg/sec | > 50M | ~60-80M | ~70-100M |
-| IPC Throughput | bandwidth | > 3 GB/s | ~4-5 GB/s | ~5-6 GB/s |
-| UDP RTT | p50 | < 5 us | ~2-4 us | ~1-3 us (io_uring) |
-| WireCodec Encode | ns/msg | < 10 ns | ~2-5 ns | ~1-4 ns |
-| WireCodec Decode | ns/msg | < 10 ns | ~2-5 ns | ~1-4 ns |
-| WireCodec Batch | msg/sec | > 150M | ~200-400M | ~300-500M |
-| SPSC Ring | p50 | < 50 ns | ~10-30 ns | ~8-25 ns |
-| SPSC Ring | p99 | < 200 ns | ~50-150 ns | ~40-100 ns |
-| MPSC Ring | p50 | < 100 ns | ~30-80 ns | ~20-60 ns |
-| LogBuffer | p50 | < 100 ns | ~30-80 ns | ~25-60 ns |
-| Broadcast Tx | msg/sec | > 30M | ~40-60M | ~50-80M |
-| SBE Encode | ns/msg | < 50 ns | ~15-30 ns | ~10-25 ns |
-| SBE Decode | ns/msg | < 50 ns | ~15-30 ns | ~10-25 ns |
-| LZ4 Compress | bandwidth | > 500 MB/s | ~600-900 MB/s | ~800-1200 MB/s |
-| LZ4 Decompress | bandwidth | > 1 GB/s | ~1.5-2.5 GB/s | ~2-4 GB/s |
+The numbers below are **design targets, not measured results**. The only
+measured data shipped with the repository is `bench/results.json` (one local
+run of the suite, covering SPSC, IPC, LogBuffer, and codec rows). That file
+contains no ping-pong RTT or UDP RTT rows, and its codec-encode row is
+degenerate (sub-nanosecond timer resolution), so it does not substantiate
+cross-platform latency comparisons. Run the suite on your own hardware for
+real numbers.
+
+| Benchmark | Metric | Target |
+|-----------|--------|--------|
+| IPC Ping-Pong | p50 RTT | < 200 ns |
+| IPC Ping-Pong | p99 RTT | < 1,000 ns |
+| IPC Throughput | msg/sec | > 50M |
+| IPC Throughput | bandwidth | > 3 GB/s |
+| UDP RTT | p50 | < 5 us |
+| WireCodec Encode | ns/msg | < 10 ns |
+| WireCodec Decode | ns/msg | < 10 ns |
+| WireCodec Batch | msg/sec | > 150M |
+| SPSC Ring | p50 | < 50 ns |
+| SPSC Ring | p99 | < 200 ns |
+| MPSC Ring | p50 | < 100 ns |
+| LogBuffer | p50 | < 100 ns |
 
 Performance varies by:
 - CPU architecture and cache hierarchy
