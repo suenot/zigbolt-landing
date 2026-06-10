@@ -170,12 +170,30 @@ button[data-open-modal]:hover {
 /* 6. Link buttons — marketmaker CTA style                             */
 /* ------------------------------------------------------------------ */
 .sl-link-button {
-	border-radius: var(--mm-radius) !important;
+	/* Uniform box model so primary/minimal (incl. their icons) render
+	   identical height & shape — fixes the mismatched/"crooked" buttons */
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	gap: 0.5rem !important;
+	height: 2.875rem !important;
+	padding: 0 1.5rem !important;
+	line-height: 1 !important;
+	box-sizing: border-box !important;
+	white-space: nowrap !important;
+	border-radius: 0.875rem !important;
 	font-weight: 700 !important;
 	letter-spacing: 0.08em !important;
 	text-transform: uppercase;
 	font-size: var(--sl-text-sm) !important;
 	transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Keep icons from stretching/altering button height */
+.sl-link-button svg {
+	flex: none;
+	width: 1em;
+	height: 1em;
 }
 
 .sl-link-button.primary {
