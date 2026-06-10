@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import react from '@astrojs/react';
 
 // https://astro.build/config
 export default defineConfig({
@@ -27,7 +28,15 @@ export default defineConfig({
 				dark: './src/assets/zigbolt-logo-dark.svg',
 				replacesTitle: false,
 			},
-			customCss: ['./src/styles/custom.css'],
+			customCss: [
+				// Inter + JetBrains Mono variable fonts (self-hosted)
+				'@fontsource-variable/inter',
+				'@fontsource-variable/jetbrains-mono',
+				// marketmaker.cc design tokens (dark default, indigo accent)
+				'@marketmaker_cc/ui/styles.css',
+				// Starlight ← marketmaker token mapping + docs chrome restyle
+				'./src/styles/custom.css',
+			],
 			head: [
 				{
 					tag: 'link',
@@ -35,7 +44,7 @@ export default defineConfig({
 				},
 				{
 					tag: 'meta',
-					attrs: { name: 'theme-color', content: '#0b0b0d' }
+					attrs: { name: 'theme-color', content: '#09090b' }
 				}
 			],
 			sidebar: [
@@ -77,6 +86,7 @@ export default defineConfig({
 				},
 			],
 		}),
+		react(),
 	],
 	vite: {
 		build: {

@@ -1,33 +1,218 @@
-:root {
+/**
+ * ZigBolt docs — marketmaker.cc design system.
+ *
+ * Maps Starlight theme variables onto the @marketmaker_cc/ui design tokens
+ * (imported globally via `@marketmaker_cc/ui/styles.css` before this file):
+ *   background  hsl(240 10% 3.9%)   card  hsl(240 10% 4.9%)
+ *   border      hsl(240 3.7% 20%)   accent hsl(245 72% 60%)  (#5A4CE4)
+ *   fonts       Inter Variable + JetBrains Mono Variable
+ *   radius      1.5rem (landing) / tamer 0.75–1.25rem for docs chrome
+ */
+
+/* ------------------------------------------------------------------ */
+/* 1. Design tokens → Starlight variables (dark forced for all modes)  */
+/* ------------------------------------------------------------------ */
+:root,
+[data-theme='light'],
+[data-theme='light'] ::backdrop {
 	color-scheme: dark;
-	--sl-color-accent-low: #1a0f00;
-	--sl-color-accent: #f7931a;
-	--sl-color-accent-high: #ff9d23;
-	--sl-font-system-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-	/* Dark theme palette forced for all modes */
-	--sl-color-white: #ffffff;
-	--sl-color-gray-1: #eceef2;
-	--sl-color-gray-2: #c0c2c7;
-	--sl-color-gray-3: #9ea2af;
-	--sl-color-gray-4: #545861;
-	--sl-color-gray-5: #353841;
-	--sl-color-gray-6: #1a1a1e;
-	--sl-color-black: #0b0b0d;
+	/* Neutrals — zinc family (hue 240) from the marketmaker palette */
+	--sl-color-white: hsl(0 0% 100%);
+	--sl-color-gray-1: hsl(240 6% 93%);
+	--sl-color-gray-2: hsl(240 5% 78%);
+	--sl-color-gray-3: hsl(240 5% 64.9%); /* --muted-foreground */
+	--sl-color-gray-4: hsl(240 4% 38%);
+	--sl-color-gray-5: hsl(240 3.7% 20%); /* --border */
+	--sl-color-gray-6: hsl(240 10% 4.9%); /* --card */
+	--sl-color-black: hsl(240 10% 3.9%); /* --background */
 
+	/* Indigo accent — #5A4CE4 */
+	--sl-color-accent-low: hsl(245 50% 17%);
+	--sl-color-accent: hsl(245 72% 60%);
+	--sl-color-accent-high: hsl(245 90% 82%); /* --accent-darker, readable on dark */
+
+	--sl-color-text: var(--sl-color-gray-2);
+	--sl-color-text-accent: var(--sl-color-accent-high);
+	--sl-color-text-invert: hsl(0 0% 100%);
 	--sl-color-bg: var(--sl-color-black);
-	--sl-color-bg-nav: var(--sl-color-black);
+	--sl-color-bg-nav: hsla(240, 10%, 3.9%, 0.82);
 	--sl-color-bg-sidebar: var(--sl-color-black);
-	--sl-color-text: var(--sl-color-gray-1);
+	--sl-color-bg-inline-code: hsla(245, 40%, 22%, 0.45);
+	--sl-color-bg-accent: var(--sl-color-accent);
+	--sl-color-hairline-light: hsl(240 3.7% 20%);
+	--sl-color-hairline: hsl(240 5% 13%);
+	--sl-color-hairline-shade: var(--sl-color-black);
+	--sl-color-backdrop-overlay: hsla(240, 10%, 4%, 0.7);
 
-	--overlay-blur: blur(40px);
+	/* Fonts — Inter + JetBrains Mono (variable, self-hosted via @fontsource) */
+	--sl-font: 'Inter Variable', 'Inter';
+	--sl-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono';
+	--sl-font-system-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace,
+		SFMono-Regular, Menlo, monospace;
+
+	/* marketmaker feel */
+	--mm-accent-rgb: 90, 76, 228;
+	--mm-radius-xl: 1.5rem; /* hero / landing cards (= --radius token) */
+	--mm-radius-lg: 1.25rem; /* docs cards */
+	--mm-radius: 1rem; /* buttons, tables, asides */
+	--mm-radius-sm: 0.75rem; /* code blocks, small chrome */
 	--card-bg: rgba(255, 255, 255, 0.03);
-	--card-border: rgba(255, 255, 255, 0.08);
+	--card-border: hsl(240 3.7% 20%);
+	--overlay-blur: blur(24px);
 }
 
+/* ------------------------------------------------------------------ */
+/* 2. Base surface — dark zinc with a faint indigo grid                */
+/* ------------------------------------------------------------------ */
+html,
+body {
+	background-color: var(--sl-color-black) !important;
+	color: var(--sl-color-gray-1) !important;
+	background-image: radial-gradient(
+			circle at 50% 8%,
+			rgba(var(--mm-accent-rgb), 0.07) 0%,
+			transparent 42%
+		),
+		linear-gradient(rgba(var(--mm-accent-rgb), 0.025) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(var(--mm-accent-rgb), 0.025) 1px, transparent 1px);
+	background-size: 100% 100%, 80px 80px, 80px 80px;
+	background-attachment: fixed;
+	position: relative;
+}
+
+html {
+	scrollbar-color: var(--sl-color-gray-5) var(--sl-color-black);
+}
+
+::selection {
+	background: rgba(var(--mm-accent-rgb), 0.35);
+	color: var(--sl-color-white);
+}
+
+body {
+	font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* ------------------------------------------------------------------ */
+/* 3. Typography — Inter, tight tracking, heavy headings               */
+/* ------------------------------------------------------------------ */
+h1[data-page-title],
+.sl-markdown-content :is(h1, h2, h3, h4, h5) {
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	color: var(--sl-color-white);
+}
+
+.tagline {
+	line-height: 1.6 !important;
+	opacity: 0.85;
+}
+
+/* ------------------------------------------------------------------ */
+/* 4. Header & navigation                                              */
+/* ------------------------------------------------------------------ */
+header {
+	background-color: var(--sl-color-bg-nav) !important;
+	backdrop-filter: var(--overlay-blur);
+	-webkit-backdrop-filter: var(--overlay-blur);
+	border-bottom: 1px solid var(--card-border) !important;
+}
+
+header .site-title span,
+.site-title .group {
+	color: var(--sl-color-white) !important;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+}
+
+/* Search button — pill, card surface */
+button[data-open-modal] {
+	border-radius: 9999px !important;
+	border: 1px solid var(--card-border) !important;
+	background-color: rgba(255, 255, 255, 0.03) !important;
+	transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+button[data-open-modal]:hover {
+	border-color: rgba(var(--mm-accent-rgb), 0.5) !important;
+	background-color: rgba(var(--mm-accent-rgb), 0.08) !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* 5. Sidebar                                                          */
+/* ------------------------------------------------------------------ */
+.sidebar-content {
+	background: transparent !important;
+}
+
+.sidebar-content a {
+	border-radius: 0.625rem !important;
+	margin: 2px 0 !important;
+	transition: background 0.2s ease, color 0.2s ease !important;
+}
+
+.sidebar-content a:hover {
+	background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.sidebar-content a[aria-current='page'] {
+	background: rgba(var(--mm-accent-rgb), 0.14) !important;
+	color: var(--sl-color-accent-high) !important;
+	font-weight: 600;
+}
+
+.sidebar-content summary {
+	border-radius: 0.625rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* 6. Link buttons — marketmaker CTA style                             */
+/* ------------------------------------------------------------------ */
+.sl-link-button {
+	border-radius: var(--mm-radius) !important;
+	font-weight: 700 !important;
+	letter-spacing: 0.08em !important;
+	text-transform: uppercase;
+	font-size: var(--sl-text-sm) !important;
+	transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.sl-link-button.primary {
+	background: var(--sl-color-accent) !important;
+	color: var(--sl-color-white) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	box-shadow: 0 10px 32px -8px rgba(var(--mm-accent-rgb), 0.55),
+		inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+.sl-link-button.primary:hover {
+	transform: translateY(-2px);
+	background: hsl(245 72% 66%) !important;
+	box-shadow: 0 16px 44px -8px rgba(var(--mm-accent-rgb), 0.7),
+		inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
+.sl-link-button.secondary,
+.sl-link-button.minimal {
+	border: 1px solid var(--card-border) !important;
+	background: rgba(255, 255, 255, 0.02) !important;
+	color: var(--sl-color-gray-1) !important;
+	text-decoration: none !important;
+}
+
+.sl-link-button.secondary:hover,
+.sl-link-button.minimal:hover {
+	transform: translateY(-2px);
+	color: var(--sl-color-white) !important;
+	background: rgba(255, 255, 255, 0.05) !important;
+	border-color: rgba(var(--mm-accent-rgb), 0.5) !important;
+}
+
+/* Hero action layout */
 .actions {
 	display: flex;
-	gap: 1.5rem !important;
+	gap: 1rem !important;
 	align-items: center !important;
 	flex-wrap: wrap;
 }
@@ -39,34 +224,30 @@
 }
 
 .copy > * {
-	max-width: 65ch !important; /* Give more breathing room */
+	max-width: 65ch !important;
 }
 
-.tagline {
-	line-height: 1.6 !important;
-	opacity: 0.8;
-}
-
-html, body {
-	background-color: var(--sl-color-black) !important;
-	color: var(--sl-color-gray-1) !important;
-	background-image: 
-		radial-gradient(circle at 50% 10%, rgba(247, 147, 26, 0.06) 0%, transparent 40%),
-		linear-gradient(rgba(247, 147, 26, 0.02) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(247, 147, 26, 0.02) 1px, transparent 1px);
-	background-size: 100% 100%, 80px 80px, 80px 80px;
-	background-attachment: fixed;
-	position: relative;
-}
-
+/* Hero reveal animations */
 @keyframes titleReveal {
-	from { opacity: 0; transform: translateY(10px); }
-	to { opacity: 1; transform: translateY(0); }
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 @keyframes imageReveal {
-	from { opacity: 0; transform: scale(0.98); }
-	to { opacity: 1; transform: scale(1); }
+	from {
+		opacity: 0;
+		transform: scale(0.98);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
 }
 
 .copy {
@@ -81,141 +262,28 @@ html, body {
 	animation: titleReveal 0.5s ease-out 0.2s both;
 }
 
-/* Background Grid - more subtle */
-html, body {
-	background-color: var(--sl-color-black) !important;
-	color: var(--sl-color-gray-1) !important;
-	background-image: 
-		radial-gradient(circle at 50% 10%, rgba(247, 147, 26, 0.04) 0%, transparent 40%),
-		linear-gradient(rgba(247, 147, 26, 0.01) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(247, 147, 26, 0.01) 1px, transparent 1px);
-	background-size: 100% 100%, 80px 80px, 80px 80px;
-	background-attachment: fixed;
-	position: relative;
+@media (prefers-reduced-motion: reduce) {
+	.copy,
+	.image-wrapper,
+	.actions {
+		animation: none;
+	}
 }
 
-/* Force dark scrollbars */
-html {
-	scrollbar-color: var(--sl-color-gray-5) var(--sl-color-black);
-}
-
-/* Hero section styling */
-.hero {
-	position: relative;
-	padding-bottom: 4rem !important;
-}
-
-.hero::before {
-	content: '';
-	position: absolute;
-	top: -100px;
-	left: 50%;
-	transform: translateX(-50%);
-	width: 100%;
-	max-width: 800px;
-	height: 400px;
-	background: radial-gradient(circle, rgba(247, 147, 26, 0.15) 0%, transparent 70%);
-	pointer-events: none;
-	z-index: -1;
-}
-
-.hero h1 {
-	text-shadow: 0 0 40px rgba(247, 147, 26, 0.2);
-	background: linear-gradient(to bottom, #fff 30%, #ccc 100%);
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	letter-spacing: -0.02em;
-}
-
-.hero .tagline {
-	font-weight: 300;
-	opacity: 0.9;
-}
-
-/* Header and Navigation refinement — forced dark values */
-header {
-	background-color: rgba(11, 11, 13, 0.8) !important;
-	backdrop-filter: var(--overlay-blur);
-	border-bottom: 1px solid var(--card-border) !important;
-}
-
-/* Button improvements */
-.sl-link-button.primary {
-	background: var(--sl-color-accent) !important;
-	color: var(--sl-color-black) !important;
-	border: 1px solid rgba(255, 255, 255, 0.2) !important;
-	box-shadow: 0 0 20px rgba(247, 147, 26, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-	font-weight: 600 !important;
-	transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-
-.sl-link-button.primary:hover {
-	transform: translateY(-2px) scale(1.02) !important;
-	box-shadow: 0 0 40px rgba(247, 147, 26, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
-	border-color: rgba(255, 255, 255, 0.4) !important;
-}
-
-/* Minimal button refinement */
-.sl-link-button.minimal {
-	color: var(--sl-color-gray-2) !important;
-	padding: 0.5rem 1rem !important;
-	border-radius: 6px !important;
-	transition: all 0.2s ease !important;
-	text-decoration: none !important;
-}
-
-.sl-link-button.minimal:hover {
-	color: var(--sl-color-white) !important;
-	background: rgba(255, 255, 255, 0.05) !important;
-}
-
-/* Sidebar improvements */
-.sidebar-content {
-	background: transparent !important;
-}
-
-.sidebar-content a {
-	border-radius: 6px !important;
-	margin: 2px 0 !important;
-	transition: background 0.2s ease !important;
-}
-
-.sidebar-content a[aria-current="page"] {
-	background: rgba(247, 147, 26, 0.1) !important;
-	color: var(--sl-color-accent) !important;
-}
-
-/* Ensure theme select has enough contrast (even if hidden, for safety) */
-starlight-theme-select select {
-	color: var(--sl-color-gray-1) !important;
-	border-color: var(--sl-color-gray-4) !important;
-}
-
-starlight-theme-select select:hover {
-	border-color: var(--sl-color-gray-2) !important;
-}
-
-starlight-theme-select [icon] {
-	color: var(--sl-color-gray-1) !important;
-}
-
-/* Site title forced white */
-header .site-title span,
-.site-title .group {
-	color: var(--sl-color-white) !important;
-}
-
-/* Performance badge colors — terminal style */
+/* ------------------------------------------------------------------ */
+/* 7. Badges — indigo pills                                            */
+/* ------------------------------------------------------------------ */
 .sl-badge {
-	font-family: var(--sl-font-system-mono) !important;
-	font-weight: 400 !important;
+	font-family: var(--__sl-font-mono) !important;
+	font-weight: 600 !important;
 	text-transform: uppercase !important;
+	letter-spacing: 0.1em !important;
 	font-size: 0.7rem !important;
-	border-radius: 4px !important;
-	padding: 2px 6px !important;
-	border: 1px solid rgba(247, 147, 26, 0.4) !important;
-	background: rgba(247, 147, 26, 0.1) !important;
-	color: var(--sl-color-accent) !important;
+	border-radius: 9999px !important;
+	padding: 2px 10px !important;
+	border: 1px solid rgba(var(--mm-accent-rgb), 0.4) !important;
+	background: rgba(var(--mm-accent-rgb), 0.12) !important;
+	color: var(--sl-color-accent-high) !important;
 }
 
 .sl-badge.success {
@@ -224,64 +292,144 @@ header .site-title span,
 	color: #4ade80 !important;
 }
 
-.sl-badge.tip {
-	border-color: rgba(59, 130, 246, 0.4) !important;
-	background: rgba(59, 130, 246, 0.1) !important;
-	color: #60a5fa !important;
+.sl-badge.caution {
+	border-color: rgba(250, 204, 21, 0.4) !important;
+	background: rgba(250, 204, 21, 0.1) !important;
+	color: #fde047 !important;
 }
 
-/* Card improvements */
+.sl-badge.danger {
+	border-color: rgba(248, 113, 113, 0.4) !important;
+	background: rgba(248, 113, 113, 0.1) !important;
+	color: #fca5a5 !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* 8. Cards — glass, generous radius, indigo hover                     */
+/* ------------------------------------------------------------------ */
 .card {
 	background: var(--card-bg) !important;
 	backdrop-filter: blur(10px) !important;
 	border: 1px solid var(--card-border) !important;
-	border-radius: 12px !important;
-	transition: all 0.3s ease-out !important;
+	border-radius: var(--mm-radius-lg) !important;
+	transition: border-color 0.3s ease-out, background 0.3s ease-out,
+		transform 0.3s ease-out, box-shadow 0.3s ease-out !important;
 }
 
 .card:hover {
-	border-color: rgba(247, 147, 26, 0.3) !important;
-	background: rgba(255, 255, 255, 0.05) !important;
+	border-color: rgba(var(--mm-accent-rgb), 0.45) !important;
+	background: rgba(255, 255, 255, 0.045) !important;
 	transform: translateY(-4px);
-	box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+	box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.6),
+		0 0 32px -12px rgba(var(--mm-accent-rgb), 0.35);
 }
 
 .card .title {
 	color: var(--sl-color-white) !important;
+	font-weight: 700;
+	letter-spacing: -0.02em;
 }
 
-.card [icon] {
-	color: var(--sl-color-accent) !important;
-	filter: drop-shadow(0 0 8px rgba(247, 147, 26, 0.3));
+.card [icon],
+.card svg {
+	color: var(--sl-color-accent-high) !important;
+	filter: drop-shadow(0 0 10px rgba(var(--mm-accent-rgb), 0.45));
 }
 
-/* Table improvements */
-table {
+/* ------------------------------------------------------------------ */
+/* 9. Tables                                                           */
+/* ------------------------------------------------------------------ */
+.sl-markdown-content table {
 	border-collapse: separate !important;
 	border-spacing: 0 !important;
 	width: 100% !important;
-	border-radius: 12px !important;
+	border-radius: var(--mm-radius) !important;
 	overflow: hidden !important;
 	border: 1px solid var(--card-border) !important;
 	background: var(--card-bg) !important;
 }
 
-th {
+.sl-markdown-content th {
 	background: rgba(255, 255, 255, 0.05) !important;
-	font-weight: 600 !important;
+	font-weight: 700 !important;
 	text-transform: uppercase !important;
-	font-size: 0.75rem !important;
-	letter-spacing: 0.05em !important;
+	font-size: 0.72rem !important;
+	letter-spacing: 0.08em !important;
+	color: var(--sl-color-gray-3) !important;
 }
 
-td, th {
-	border: 1px solid var(--card-border) !important;
-	padding: 1rem !important;
+.sl-markdown-content td,
+.sl-markdown-content th {
+	border: none !important;
+	border-bottom: 1px solid var(--card-border) !important;
+	padding: 0.875rem 1rem !important;
 }
 
-/* Code block styling */
-pre {
+.sl-markdown-content tr:last-child td {
+	border-bottom: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* 10. Code                                                            */
+/* ------------------------------------------------------------------ */
+/* Theme Expressive Code via its own variables so frames (terminal
+   title bars, editor tabs) stay attached to their code blocks. */
+.expressive-code {
+	--ec-brdRad: var(--mm-radius-sm);
+	--ec-brdCol: var(--card-border);
+	--ec-codeBg: hsl(240 10% 4.5%);
+	--ec-frm-edBg: hsl(240 10% 4.5%);
+	--ec-frm-trmBg: hsl(240 10% 4.5%);
+	--ec-frm-trmTtbBg: hsl(240 8% 7%);
+	--ec-frm-edTabBarBg: hsl(240 8% 7%);
+	--ec-frm-trmTtbDotsFg: hsl(245 25% 40%);
+	--ec-frm-edActTabIndTopCol: var(--sl-color-accent);
+	--ec-frm-frameBoxShdCssVal: none;
+}
+
+/* Non-Expressive-Code <pre> fallback (rare) */
+.sl-markdown-content pre:not(:where(.expressive-code *)) {
+	border: 1px solid var(--card-border);
+	background: hsl(240 10% 4.5%);
+	border-radius: var(--mm-radius-sm);
+}
+
+.sl-markdown-content code:not(:where(pre code)) {
+	border-radius: 0.45rem;
+	color: var(--sl-color-accent-high);
+}
+
+/* ------------------------------------------------------------------ */
+/* 11. Asides, pagination, misc chrome                                 */
+/* ------------------------------------------------------------------ */
+.starlight-aside {
+	border-radius: var(--mm-radius);
+	border: 1px solid var(--card-border);
+	border-inline-start-width: 3px;
+}
+
+.pagination-links a {
+	border-radius: var(--mm-radius) !important;
 	border: 1px solid var(--card-border) !important;
-	background: #0d0d0f !important;
-	border-radius: 8px !important;
+	background: var(--card-bg);
+	box-shadow: none !important;
+	transition: border-color 0.25s ease, transform 0.25s ease;
+}
+
+.pagination-links a:hover {
+	border-color: rgba(var(--mm-accent-rgb), 0.5) !important;
+	transform: translateY(-2px);
+}
+
+/* Theme select (hidden, but keep contrast-safe) */
+starlight-theme-select select {
+	color: var(--sl-color-gray-1) !important;
+	border-color: var(--sl-color-gray-4) !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* 12. Landing page (splash) — wider canvas for the marketing grid     */
+/* ------------------------------------------------------------------ */
+html[data-has-hero] {
+	--sl-content-width: 73rem !important;
 }

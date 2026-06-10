@@ -1,0 +1,25 @@
+/**
+ * Landing-page-only stylesheet (imported from src/content/docs/index.mdx).
+ *
+ * Tailwind utilities for the @marketmaker_cc/ui components live here so docs
+ * pages never pay for them. Preflight is disabled in tailwind.config.cjs, so
+ * `@tailwind base` only emits the --tw-* custom-property defaults (safe for
+ * Starlight).
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+	/* Glass surface used by @marketmaker_cc/ui Card (mirrors marketmaker.cc globals) */
+	.glass {
+		@apply border border-border bg-card/40 backdrop-blur-xl;
+		box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+	}
+}
+
+@layer utilities {
+	.shadow-glow {
+		box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.2);
+	}
+}
